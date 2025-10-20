@@ -1,66 +1,35 @@
-name: Linux RDP (GNOME + Max Performance + Tailscale)
+name: Linux GNOME via Tailscale
 
 on:
   workflow_dispatch:
 
 jobs:
-  linux-rdp:
-    runs-on: ubuntu-22.04
+  gnome-session:
+    runs-on: ubuntu-latest
     timeout-minutes: 360
 
     steps:
-      - name: Maximize performance
-        run: |
-          sudo swapoff -a
-          sudo sysctl -w vm.swappiness=10
-          sudo apt-get clean
-          echo "Performance tuning complete."
-
-      - name: Install GNOME + XRDP + Tools
-        run: |
-          sudo apt update
-          sudo apt install -y ubuntu-desktop xrdp dbus-x11 gnome-terminal gedit nautilus firefox code filezilla net-tools htop
-          
-          # Enable XRDP service
-          sudo systemctl enable xrdp
-          sudo adduser $USER ssl-cert
-
-          # Force GNOME session for RDP (fixes failsafe error)
-          echo "gnome-session" > ~/.xsession
-          sudo sed -i 's/^test -x/#test -x/' /etc/xrdp/startwm.sh
-          sudo sed -i 's/^exec/#exec/' /etc/xrdp/startwm.sh
-          echo "exec gnome-session" | sudo tee -a /etc/xrdp/startwm.sh
-
-          # Restart XRDP
-          sudo systemctl restart xrdp
-
-          echo "GNOME desktop + RDP configured successfully."
-
-      - name: Install and Configure Tailscale
+      - name: Setup Tailscale with SSH enabled
         run: |
           curl -fsSL https://tailscale.com/install.sh | sh
-          sudo tailscale up \
-            --authkey=${{ secrets.TS_AUTH_KEY }} \
-            --hostname=github-linux-gnome \
-            --accept-dns=false \
-            --ssh
+          sudo tailscale up --authkey=${{ secrets.TS_KEY }} --ssh --hostname="gnome-runner-${{ github.run_id }}"
+          echo "✅ Connected to Tailscale!"
+          tailscale ip -4
 
-          echo "Tailscale connection initialized."
-
-      - name: System Info
+      - name: Install GNOME + VNC
         run: |
-          echo "===== SYSTEM INFO ====="
-          lscpu | grep -E 'Model name|CPU\(s\)|Thread|Core'
-          free -h
-          df -h /
-          echo "========================"
+          sudo apt update
+          sudo apt install -y gnome-session gnome-terminal tigervnc-standalone-server dbus-x11
+          mkdir -p ~/.vnc
+          echo "123456" | vncpasswd -f > ~/.vnc/passwd
+          chmod 600 ~/.vnc/passwd
+          echo "#!/bin/bash
+          export XDG_SESSION_TYPE=x11
+          export DISPLAY=:1
+          gnome-session &" > ~/.vnc/xstartup
+          chmod +x ~/.vnc/xstartup
+          vncserver :1 -geometry 1920x1080 -depth 24
+          echo "✅ GNOME + VNC running on port 5901"
 
-      - name: Access Instructions
-        run: |
-          echo "✅ RDP + GNOME is ready!"
-          echo "1. Visit https://login.tailscale.com/admin/machines"
-          echo "2. Copy your machine's Tailscale IP (100.x.x.x)."
-          echo "3. Connect with any RDP client to IP:3389"
-          echo "   Username: runner"
-          echo "   Password: runneradmin"
-          echo "4. Desktop: GNOME"
+      - name: Keep alive for access
+        run: sleep 10800
