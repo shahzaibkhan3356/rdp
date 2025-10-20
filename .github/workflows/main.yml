@@ -1,51 +1,54 @@
-name: Linux-RDP
+name: Linux RDP (Max Performance)
 
 on:
   workflow_dispatch:
 
 jobs:
-  rdp-session:
-    runs-on: ubuntu-latest
+  linux-rdp:
+    runs-on: ubuntu-22.04
     timeout-minutes: 360
 
     steps:
-      - name: Install desktop and xrdp
+      - name: Maximize system performance
+        run: |
+          sudo swapoff -a
+          sudo sysctl -w vm.swappiness=10
+          sudo apt-get clean
+          echo "Performance tuning complete"
+
+      - name: Install GNOME + RDP
         run: |
           sudo apt update
-          sudo apt install -y xfce4 xfce4-goodies xorg dbus-x11 x11-xserver-utils xrdp
+          sudo apt install -y ubuntu-desktop xrdp dbus-x11 gnome-terminal
           sudo systemctl enable xrdp
-          sudo systemctl start xrdp
+          sudo adduser $USER ssl-cert
+          sudo systemctl restart xrdp
 
-          USER=rdp
-          PASS=$(openssl rand -base64 12)
-          sudo useradd -m -s /bin/bash $USER
-          echo "$USER:$PASS" | sudo chpasswd
-          sudo usermod -aG sudo $USER
+          # Lightweight tweaks
+          gsettings set org.gnome.desktop.session idle-delay 0 || true
+          gsettings set org.gnome.desktop.screensaver lock-enabled false || true
 
-          echo "RDP_USER=$USER" >> $GITHUB_ENV
-          echo "RDP_PASS=$PASS" >> $GITHUB_ENV
-
-      - name: Install Tailscale
+      - name: Install Tailscale (Secure Access)
         run: |
           curl -fsSL https://tailscale.com/install.sh | sh
-          sudo tailscale up --authkey=${{ secrets.TAILSCALE_AUTH_KEY }} --hostname=linux-runner-${{ github.run_id }}
-          sleep 10
-          IP=$(sudo tailscale ip -4 | head -n1)
-          echo "TAILSCALE_IP=$IP" >> $GITHUB_ENV
+          sudo tailscale up --authkey=${{ secrets.TS_AUTH_KEY }} \
+                            --hostname=github-linux-max \
+                            --accept-dns=false \
+                            --ssh
 
-      - name: Show connection info
+      - name: System info
         run: |
-          echo "============================="
-          echo "✅ Linux RDP session started!"
-          echo "Tailscale IP: $TAILSCALE_IP"
-          echo "Username: $RDP_USER"
-          echo "Password: $RDP_PASS"
-          echo "Connect via: ${TAILSCALE_IP}:3389"
-          echo "============================="
+          echo "===== SYSTEM INFO ====="
+          lscpu | grep -E 'Model name|Socket|Thread|Core|CPU\(s\)'
+          free -h
+          df -h /
+          echo "========================"
 
-      - name: Keep session alive
+      - name: Display Access Info
         run: |
-          while true; do
-            echo "[Keep-Alive] $(date)"
-            sleep 300
-          done
+          echo "Tailscale node connected!"
+          echo "Fetch IP via: https://login.tailscale.com/admin/machines"
+          echo "Connect via RDP client (port 3389)"
+          echo "Username: runner"
+          echo "Password: runneradmin"
+          echo "Desktop: GNOME"
