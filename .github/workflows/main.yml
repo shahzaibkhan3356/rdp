@@ -1,4 +1,4 @@
-name: Linux RDP (Max Performance)
+name: Linux RDP (GNOME + Max Performance + Tailscale)
 
 on:
   workflow_dispatch:
@@ -9,46 +9,58 @@ jobs:
     timeout-minutes: 360
 
     steps:
-      - name: Maximize system performance
+      - name: Maximize performance
         run: |
           sudo swapoff -a
           sudo sysctl -w vm.swappiness=10
           sudo apt-get clean
-          echo "Performance tuning complete"
+          echo "Performance tuning complete."
 
-      - name: Install GNOME + RDP
+      - name: Install GNOME + XRDP + Tools
         run: |
           sudo apt update
-          sudo apt install -y ubuntu-desktop xrdp dbus-x11 gnome-terminal
+          sudo apt install -y ubuntu-desktop xrdp dbus-x11 gnome-terminal gedit nautilus firefox code filezilla net-tools htop
+          
+          # Enable XRDP service
           sudo systemctl enable xrdp
           sudo adduser $USER ssl-cert
+
+          # Force GNOME session for RDP (fixes failsafe error)
+          echo "gnome-session" > ~/.xsession
+          sudo sed -i 's/^test -x/#test -x/' /etc/xrdp/startwm.sh
+          sudo sed -i 's/^exec/#exec/' /etc/xrdp/startwm.sh
+          echo "exec gnome-session" | sudo tee -a /etc/xrdp/startwm.sh
+
+          # Restart XRDP
           sudo systemctl restart xrdp
 
-          # Lightweight tweaks
-          gsettings set org.gnome.desktop.session idle-delay 0 || true
-          gsettings set org.gnome.desktop.screensaver lock-enabled false || true
+          echo "GNOME desktop + RDP configured successfully."
 
-      - name: Install Tailscale (Secure Access)
+      - name: Install and Configure Tailscale
         run: |
           curl -fsSL https://tailscale.com/install.sh | sh
-          sudo tailscale up --authkey=${{ secrets.TS_AUTH_KEY }} \
-                            --hostname=github-linux-max \
-                            --accept-dns=false \
-                            --ssh
+          sudo tailscale up \
+            --authkey=${{ secrets.TS_AUTH_KEY }} \
+            --hostname=github-linux-gnome \
+            --accept-dns=false \
+            --ssh
 
-      - name: System info
+          echo "Tailscale connection initialized."
+
+      - name: System Info
         run: |
           echo "===== SYSTEM INFO ====="
-          lscpu | grep -E 'Model name|Socket|Thread|Core|CPU\(s\)'
+          lscpu | grep -E 'Model name|CPU\(s\)|Thread|Core'
           free -h
           df -h /
           echo "========================"
 
-      - name: Display Access Info
+      - name: Access Instructions
         run: |
-          echo "Tailscale node connected!"
-          echo "Fetch IP via: https://login.tailscale.com/admin/machines"
-          echo "Connect via RDP client (port 3389)"
-          echo "Username: runner"
-          echo "Password: runneradmin"
-          echo "Desktop: GNOME"
+          echo "✅ RDP + GNOME is ready!"
+          echo "1. Visit https://login.tailscale.com/admin/machines"
+          echo "2. Copy your machine's Tailscale IP (100.x.x.x)."
+          echo "3. Connect with any RDP client to IP:3389"
+          echo "   Username: runner"
+          echo "   Password: runneradmin"
+          echo "4. Desktop: GNOME"
