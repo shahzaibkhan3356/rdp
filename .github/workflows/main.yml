@@ -17,12 +17,13 @@ jobs:
     - name: Configure and Start CRD
       run: |
         & "${Env:PROGRAMFILES(X86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" `
-        --code="4/0ASc3gC2uxGDqRO10W1wAVVW02hzeV3sHVv8pTRsWZXvsZTNUB7YGmrbF0lyM8-oSwwuLzg" `
+        --code="4/0ASc3gC3kvkFpbZDz7RCx6GEE8dLuiA6yZswelq2Chn2ccqGPyERo4WieeiOT0kPCLOxSpw" `
         --redirect-url="https://remotedesktop.google.com/_/oauthredirect" `
-        --name="GitHub-Mobile-RDP" `
+        --name="Mobile-RDP" `
         --pin=123456 `
         --non-interactive
 
-    - name: Silent Keep Alive
+    - name: Silent Infinite Loop
       run: |
+        write-host "RDP registered. Keep-alive loop starting..."
         conhost.exe --headless powershell.exe -Command "while($true) { Start-Sleep -Seconds 60 }"
