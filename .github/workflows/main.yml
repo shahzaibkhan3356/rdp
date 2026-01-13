@@ -8,22 +8,24 @@ jobs:
     timeout-minutes: 9999
 
     steps:
-    - name: Install Chrome Remote Desktop
+    - name: Setup Chrome Remote Desktop
+      shell: powershell
       run: |
-        $Method = "https://dl.google.com/edgedl/chrome-remote-desktop/chromeremotedesktophost.msi"
-        Invoke-WebRequest -Uri $Method -OutFile "crd.msi"
+        # 1. Install CRD
+        Invoke-WebRequest -Uri "https://dl.google.com/edgedl/chrome-remote-desktop/chromeremotedesktophost.msi" -OutFile "crd.msi"
         Start-Process msiexec.exe -Wait -ArgumentList "/i crd.msi /quiet"
 
-    - name: Configure and Start CRD
-      run: |
+        # 2. Start Host (REPLACE THE CODE BELOW WITH A FRESH ONE)
         & "${Env:PROGRAMFILES(X86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" `
-        --code="4/0ASc3gC3kvkFpbZDz7RCx6GEE8dLuiA6yZswelq2Chn2ccqGPyERo4WieeiOT0kPCLOxSpw" `
+        --code="4/0ASc3gC1p3ip3bNeuguFwJIL1Xr7rAl3aAEvetHFWyA955q3RNF6BBk8vgt_PTWyMcOcRDg" `
         --redirect-url="https://remotedesktop.google.com/_/oauthredirect" `
         --name="Mobile-RDP" `
         --pin=123456 `
         --non-interactive
 
-    - name: Silent Infinite Loop
-      run: |
-        write-host "RDP registered. Keep-alive loop starting..."
-        conhost.exe --headless powershell.exe -Command "while($true) { Start-Sleep -Seconds 60 }"
+        # 3. Foreground Infinite Loop (Prevents Auto-Finish)
+        Write-Host "RDP is online. You can now connect from your mobile app."
+        while($true) {
+            Start-Sleep -Seconds 60
+            Write-Host "Keeping session alive... $(Get-Date)"
+        }
