@@ -14,18 +14,15 @@ jobs:
         Invoke-WebRequest -Uri $Method -OutFile "crd.msi"
         Start-Process msiexec.exe -Wait -ArgumentList "/i crd.msi /quiet"
 
-    - name: Authorize and Start Host
+    - name: Configure and Start CRD
       run: |
         & "${Env:PROGRAMFILES(X86)}\Google\Chrome Remote Desktop\CurrentVersion\remoting_start_host.exe" `
-        --code="4/0ASc3gC3VRjq9s-Tdvi39X7PqqvnQjAY8PZQpeaTBxCoCdCZayTKVFukn6JwcElXfrKuM9Q" `
+        --code="4/0ASc3gC2uxGDqRO10W1wAVVW02hzeV3sHVv8pTRsWZXvsZTNUB7YGmrbF0lyM8-oSwwuLzg" `
         --redirect-url="https://remotedesktop.google.com/_/oauthredirect" `
-        --name=$Env:COMPUTERNAME `
+        --name="GitHub-Mobile-RDP" `
         --pin=123456 `
         --non-interactive
 
-    - name: Keep Alive
+    - name: Silent Keep Alive
       run: |
-        while ($true) {
-          Write-Host "RDP Session Active..."
-          Start-Sleep -Seconds 60
-        }
+        conhost.exe --headless powershell.exe -Command "while($true) { Start-Sleep -Seconds 60 }"
